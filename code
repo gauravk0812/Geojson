@@ -1,0 +1,46 @@
+import json
+from sqlalchemy import create_engine, Table, MetaData, insert
+from sqlalchemy.orm import sessionmaker
+
+engine = create_engine(DATABASE_URL)
+Session = sessionmaker(bind=engine)
+metadata = MetaData(schema="ftslinq1_dev_pgs_db_schema")
+session = Session()
+
+# Load GeoJSON files
+with open('C:\\Downloads\\north_atlantic_AL122024_KIRK_path.geojson', 'r') as f1:
+    geojson_data_1 = json.load(f1)
+
+with open('C:\\Downloads\\north_atlantic_AL122024_KIRK_forecast.geojson', 'r') as f2:
+    geojson_data_2 = json.load(f2)
+
+# Define the table schema (replace 'your_table_name' with the actual table name)
+metadata = MetaData(bind=engine)
+your_table = Table('storm', metadata, autoload_with=engine)
+
+# Prepare data to be inserted
+insert_data = {
+    'basin': 'north_atlantic',  # Replace with actual value
+    'nhc_operational_id': 'AL132024',
+    'name': 'KIRK',
+    'track_from': '2024-10-03',
+    'track_from': '2024-10-03',
+    'storm_progress_updated_on': '2024-10-03',
+    # Replace with actual value
+    'path': geojson_data_1,  # First GeoJSON data
+    'affected_area': geojson_data_2   # Second GeoJSON data    
+}
+
+# Insert statement
+stmt = insert(your_table).values(insert_data)
+
+# Execute the insert
+try:
+    session.execute(stmt)
+    session.commit()
+    print("Data inserted successfully.")
+except Exception as e:
+    print(f"Error occurred: {e}")
+    session.rollback()
+finally:
+    session.close()
