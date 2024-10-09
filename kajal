@@ -1,125 +1,111 @@
- public async getEnumsListByEnumtype(enumType: string): Promise<IZenvyEnum[]> {
-    let baseUrl: string = this.getBaseUrl();
-    let url = Utils.pathJoin([baseUrl + '/' + enumType]);
-    const result$ = await this._http.get<IZenvyEnum[]>(url);
-    const data = await lastValueFrom(result$);
-    const sortedData = data.sort(
-      (a, b) => Number(a.Sequence) - Number(b.Sequence)
-    );
-    return sortedData;
-  }
+import { HttpClient } from '@angular/common/http';
+import { Injectable } from '@angular/core';
+import { NGXLogger } from 'ngx-logger';
+import { AppConfigService } from '../shared/services/app-config.service';
+import { Utils } from '../shared/utils/utils';
+import { IBuildInfo } from '../resources/buildInfo';
+import { lastValueFrom } from 'rxjs';
  
-  public async getEnumName(value: string, enumType: string): Promise<string> {
-    if (Utils.isEmptyOrWhiteSpace(value)) {
-      return '-';
-    }
- 
-    await this.ensureEnumCached(enumType);
-    const cachedEnum = this.cachedEnums.find(
-      (cachedItem) => cachedItem.enumType === enumType
-    );
-    if (cachedEnum) {
-      const item = cachedEnum.enumItems.find(
-        (enumItem) => enumItem.Value === value
-      );
-      return item ? item.EnumName : '-';
-    }
-    return '-';
-  }
- 
-  private async ensureEnumCached(enumType: string): Promise<void> {
-    if (!this.isInCache(enumType)) {
-      if (!this.fetchingEnums[enumType]) {
-        this.fetchingEnums[enumType] = this.cacheEnums(enumType);
-      }
-      await this.fetchingEnums[enumType];
-    }
-  }
- 
-  private async cacheEnums(enumType: string): Promise<void> {
-    try {
-      const enumItems: IZenvyEnum[] = await this.getEnumsListByEnumtype(
-        enumType
-      );
-      const cachedEnum: IEnumCached = {
-        enumType: enumType,
-        enumItems: enumItems,
-      };
-      this.cachedEnums.push(cachedEnum);
-    } catch (error) {
-      console.error(`Failed to cache enums for ${enumType}:`, error);
-    } finally {
-      delete this.fetchingEnums[enumType];
-    }
-  }
- 
-  private isInCache(enumType: string): boolean {
-    const cachedEnum = this.cachedEnums.find(
-      (cachedItem) => cachedItem.enumType === enumType
-    );
-    return !Utils.isNullOrUndefined(cachedEnum);
-  }
- 
-import { Pipe } from '@angular/core';
- 
-enum Alignment {
-  left,
-  right,
-  center,
-}
- 
-export interface IColumnDef {
-  columnDisplayName: string;
-  propertyName: string;
-  formatter?: string;
-  zenvyEnumType?: string;
-  lookupGroupName?: string;
-}
- 
- 
- 
-/* error-display.component.scss */
-.container-fluid {
-  margin-bottom: 0; // Remove margin below the alert
-}
- 
-.alert {
-  margin: 0; // Remove margins around the alert
-  padding: 0.5rem 1rem; // Adjust padding as needed
-}
-
- 
-import { Pipe, PipeTransform } from '@angular/core';
-import { EnumService } from 'src/app/services/enum.service';
- 
-@Pipe({
-  name: 'enumNamePipe',
+@Injectable({
+  providedIn: 'root'
 })
-export class EnumNamePipe implements PipeTransform {
-  constructor(private enumService: EnumService) {}
+export class BuildInfoService {
+  BASE_URL: string | undefined;
  
-  async transform(value: string, enumType?: string): Promise<string> {
-    if (enumType) {
-      return await this.enumService.getEnumName(value, enumType);
-    }
-    return '';
-  }
+constructor(
+  logger: NGXLogger,
+  private _http: HttpClient,
+  configService: AppConfigService
+) {
+  this.BASE_URL = configService.Config?.API_URL.toString();
+}
+protected getBaseUrl(): string {
+  return this.BASE_URL + 'zenvy';
+}
+ 
+public async getBuildInfo(): Promise<IBuildInfo>{
+  let baseUrl: string = this.getBaseUrl();
+  let url = Utils.pathJoin([baseUrl,'build-info']);
+  const result$ = await this._http.get<IBuildInfo>(url);
+  return await lastValueFrom(result$);
+}
+ 
 }
  
  
- <ng-container *ngIf="column.formatter === 'enumNamePipe'">
-        {{
-          item[column.propertyName]
-            | enumNamePipe : column.zenvyEnumType
-            | async
-        }}
-      </ng-container>
- 
-  {
-      columnDisplayName: 'Frequency',
-      propertyName: 'InvoiceGenerationFrequency',
-      formatter: 'enumNamePipe',
-      zenvyEnumType: 'InvoiceGenerationFrequencies',
-    },
+Service
  
  
+import { Component } from '@angular/core';
+import { IBuildInfo } from 'src/app/resources/buildInfo';
+import { BuildInfoService } from 'src/app/services/buildInfo.service';
+ 
+@Component({
+  selector: 'app-footer',
+  templateUrl: './footer.component.html',
+  styleUrls: ['./footer.component.scss'],
+})
+export class FooterComponent {
+  currentYear!: number;
+  buildInfo: IBuildInfo | null = null;;
+ 
+ 
+  constructor(private buildInfoservice:BuildInfoService){
+ 
+  }
+  ngOnInit(): void {
+    this.getCurrentYear();
+    this.getApplicationVersion()
+  }
+ 
+  getCurrentYear(): void {
+    this.currentYear = new Date().getFullYear();
+  }
+ 
+  public async getApplicationVersion():Promise<void>{
+    this.buildInfo = await this.buildInfoservice.getBuildInfo();
+ 
+  }
+}
+ 
+footer Ts
+ 
+<div class="footer-component">
+  <div class="row align-items-center">
+    <div class="col-md-4"></div>
+    <div class="col-md-4 text-center">
+      <img src="../../../../assets/Zennovate_1.png" alt="" class="imgPath" />
+    </div>
+    <div class="col-md-4 text-md-end">
+      <h5>
+        &copy; {{ currentYear }} ZENvy Invoicing System. All Rights Reserved.
+        ({{ buildInfo?.Version }})
+      </h5>
+    </div>
+  </div>
+</div>
+footer html
+ 
+export interface IBuildInfo {
+ 
+    Name:string
+ 
+    Description:string
+ 
+    Version:string
+ 
+    BuildNumber:string
+ 
+    MajorVersion:string
+ 
+    MinorVersion:string
+ 
+    Copyright:string
+ 
+    Company:string
+ 
+    BuildDateTimeUTC:Date
+}
+ 
+ 
+has context menu
