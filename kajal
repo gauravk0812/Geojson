@@ -1,111 +1,20 @@
-import { HttpClient } from '@angular/common/http';
-import { Injectable } from '@angular/core';
-import { NGXLogger } from 'ngx-logger';
-import { AppConfigService } from '../shared/services/app-config.service';
-import { Utils } from '../shared/utils/utils';
-import { IBuildInfo } from '../resources/buildInfo';
-import { lastValueFrom } from 'rxjs';
+@app.middleware("http")
+async def jwt_middleware(request: Request, call_next):
+    # Allow access to specific endpoints without token
+    exempt_routes = ["/saml/consume", "/login"]  # Add more routes as necessary
+    if request.url.path not in exempt_routes:
+        token = request.headers.get("Authorization")
+        if not token:
+            return RedirectResponse(url="/login")  # Redirect to login if no token
  
-@Injectable({
-  providedIn: 'root'
-})
-export class BuildInfoService {
-  BASE_URL: string | undefined;
+        token = token.replace("Bearer ", "")
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            request.state.user = payload  # Store user info in request state
+        except jwt.ExpiredSignatureError:
+            return RedirectResponse(url="/login")  # Redirect to login if token expired
+        except jwt.PyJWTError:
+            return RedirectResponse(url="/login")  # Redirect to login for invalid token
  
-constructor(
-  logger: NGXLogger,
-  private _http: HttpClient,
-  configService: AppConfigService
-) {
-  this.BASE_URL = configService.Config?.API_URL.toString();
-}
-protected getBaseUrl(): string {
-  return this.BASE_URL + 'zenvy';
-}
- 
-public async getBuildInfo(): Promise<IBuildInfo>{
-  let baseUrl: string = this.getBaseUrl();
-  let url = Utils.pathJoin([baseUrl,'build-info']);
-  const result$ = await this._http.get<IBuildInfo>(url);
-  return await lastValueFrom(result$);
-}
- 
-}
- 
- 
-Service
- 
- 
-import { Component } from '@angular/core';
-import { IBuildInfo } from 'src/app/resources/buildInfo';
-import { BuildInfoService } from 'src/app/services/buildInfo.service';
- 
-@Component({
-  selector: 'app-footer',
-  templateUrl: './footer.component.html',
-  styleUrls: ['./footer.component.scss'],
-})
-export class FooterComponent {
-  currentYear!: number;
-  buildInfo: IBuildInfo | null = null;;
- 
- 
-  constructor(private buildInfoservice:BuildInfoService){
- 
-  }
-  ngOnInit(): void {
-    this.getCurrentYear();
-    this.getApplicationVersion()
-  }
- 
-  getCurrentYear(): void {
-    this.currentYear = new Date().getFullYear();
-  }
- 
-  public async getApplicationVersion():Promise<void>{
-    this.buildInfo = await this.buildInfoservice.getBuildInfo();
- 
-  }
-}
- 
-footer Ts
- 
-<div class="footer-component">
-  <div class="row align-items-center">
-    <div class="col-md-4"></div>
-    <div class="col-md-4 text-center">
-      <img src="../../../../assets/Zennovate_1.png" alt="" class="imgPath" />
-    </div>
-    <div class="col-md-4 text-md-end">
-      <h5>
-        &copy; {{ currentYear }} ZENvy Invoicing System. All Rights Reserved.
-        ({{ buildInfo?.Version }})
-      </h5>
-    </div>
-  </div>
-</div>
-footer html
- 
-export interface IBuildInfo {
- 
-    Name:string
- 
-    Description:string
- 
-    Version:string
- 
-    BuildNumber:string
- 
-    MajorVersion:string
- 
-    MinorVersion:string
- 
-    Copyright:string
- 
-    Company:string
- 
-    BuildDateTimeUTC:Date
-}
- 
- 
-has context menu
+    response = await call_next(request)
+    return response
