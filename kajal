@@ -1,20 +1,65 @@
 @app.middleware("http")
-async def jwt_middleware(request: Request, call_next):
-    # Allow access to specific endpoints without token
-    exempt_routes = ["/saml/consume", "/login"]  # Add more routes as necessary
-    if request.url.path not in exempt_routes:
-        token = request.headers.get("Authorization")
-        if not token:
-            return RedirectResponse(url="/login")  # Redirect to login if no token
+async def client_app_middleware(request: Request, call_next):
+    requested_url = request.url.path
  
-        token = token.replace("Bearer ", "")
-        try:
-            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-            request.state.user = payload  # Store user info in request state
-        except jwt.ExpiredSignatureError:
-            return RedirectResponse(url="/login")  # Redirect to login if token expired
-        except jwt.PyJWTError:
-            return RedirectResponse(url="/login")  # Redirect to login for invalid token
+    # Check if the request is for /openapi.json
+    if requested_url == "/openapi.json":
+        # Generate and return the OpenAPI schema as JSON
+        openapi_schema = app.openapi()
+        return JSONResponse(content=openapi_schema)
  
-    response = await call_next(request)
-    return response
+    # Handle Swagger UI (/docs), ReDoc (/redoc), and API ("/api") endpoints.
+    if (
+        requested_url.startswith("/docs")
+        or requested_url.startswith("/redoc")
+        or requested_url.startswith("/api")
+    ):
+        return await call_next(request)
+ 
+    # Define exempt routes
+    if requested_url == [
+        "/docs",
+        "/redoc",
+        "/api/v1/version",
+        "/api/v1/logs",
+        "/api/v1/logs/{file_name}",
+        "/api/v1/auth/login",
+        "/api/v1/auth/verify-token",
+        "/api/v1/login",
+        "/api/v1/saml/acs",
+    ]:
+ 
+        # Check if the request is for an exempt route
+        if not any(requested_url.startswith(route) for route in requested_url):
+            token = request.headers.get("Authorization")
+            if not token:
+                return RedirectResponse(url="/login")
+            try:
+                payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+                request.state.user = payload
+            except jwt.ExpiredSignatureError:
+                return RedirectResponse(url="/login")
+            except jwt.DecodeError:
+                return RedirectResponse(url="/login")
+            except jwt.InvalidTokenError:
+                return RedirectResponse(url="/login")
+ 
+        # Assume static file request
+        if requested_url == "" or requested_url == "/":
+            requested_url = "/index.html"
+        elif requested_url == "/login":
+            requested_url = "/assets/login.html"
+ 
+        # Translate requested URL to static resource path.
+        resource_path = get_resource_abs_path(requested_url)
+        if os.path.exists(resource_path):
+            return FileResponse(resource_path)
+        else:
+            # If static resource does not exist, just serve index.html
+            resource_path = get_resource_abs_path("/index.html")
+            if os.path.exists(resource_path):
+                return FileResponse(resource_path)
+            else:
+                raise NotFoundException(
+                    detail="Cannot find default document. Please contact system administrator",
+                )
