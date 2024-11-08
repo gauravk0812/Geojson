@@ -1,65 +1,50 @@
-@app.middleware("http")
-async def client_app_middleware(request: Request, call_next):
-    requested_url = request.url.path
+JWT Session Management Flow with Session Table.
  
-    # Check if the request is for /openapi.json
-    if requested_url == "/openapi.json":
-        # Generate and return the OpenAPI schema as JSON
-        openapi_schema = app.openapi()
-        return JSONResponse(content=openapi_schema)
+Purpose:
  
-    # Handle Swagger UI (/docs), ReDoc (/redoc), and API ("/api") endpoints.
-    if (
-        requested_url.startswith("/docs")
-        or requested_url.startswith("/redoc")
-        or requested_url.startswith("/api")
-    ):
-        return await call_next(request)
+The Session table will store details of each active and expired session, allowing for robust management of user sessions, including tracking login/logout times, identifying active sessions, and monitoring activity by capturing IP address and user-agent information.This table helps implement secure logout by recording session data and supporting session invalidation.
  
-    # Define exempt routes
-    if requested_url == [
-        "/docs",
-        "/redoc",
-        "/api/v1/version",
-        "/api/v1/logs",
-        "/api/v1/logs/{file_name}",
-        "/api/v1/auth/login",
-        "/api/v1/auth/verify-token",
-        "/api/v1/login",
-        "/api/v1/saml/acs",
-    ]:
  
-        # Check if the request is for an exempt route
-        if not any(requested_url.startswith(route) for route in requested_url):
-            token = request.headers.get("Authorization")
-            if not token:
-                return RedirectResponse(url="/login")
-            try:
-                payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-                request.state.user = payload
-            except jwt.ExpiredSignatureError:
-                return RedirectResponse(url="/login")
-            except jwt.DecodeError:
-                return RedirectResponse(url="/login")
-            except jwt.InvalidTokenError:
-                return RedirectResponse(url="/login")
+Session Table
+session_id:UUID
+user_id:UUID (Uique id of the current logged in user)
+logged_in_at:DateTime(Timestamp of when the user logged in Mandatory)
+logout_at:Datetime (Timestampfor logout. set upon usr logout)
+client_ip:string(IP address of client at the time of login(we will get that from request))
+user_agent:string (we will get this from request)
+status:str (Active/expired/logged_out)
  
-        # Assume static file request
-        if requested_url == "" or requested_url == "/":
-            requested_url = "/index.html"
-        elif requested_url == "/login":
-            requested_url = "/assets/login.html"
+Workflow
+1.Login Flow
+- User Logs in:WHen the user successfully logs in,generate a JWT token and initiate a session i the session table.
  
-        # Translate requested URL to static resource path.
-        resource_path = get_resource_abs_path(requested_url)
-        if os.path.exists(resource_path):
-            return FileResponse(resource_path)
-        else:
-            # If static resource does not exist, just serve index.html
-            resource_path = get_resource_abs_path("/index.html")
-            if os.path.exists(resource_path):
-                return FileResponse(resource_path)
-            else:
-                raise NotFoundException(
-                    detail="Cannot find default document. Please contact system administrator",
-                )
+- CREATE SESSION RECORD
+-Insert session_id
+-Assign user_id :Link the session to the user_id of logged in user
+-Record logged_in_at
+-Capture client_ip:Retrive the IP address from login request and store it
+-Store user_agent :Retrive the user agent string from login request.
+-Set status:Set the initial status of the session to active.
+ 
+2. Token Verification(Middleware)
+-Check token validity:Each request includes the JWT in headers,Which is verified to check if it is valid and unexpred.
+-Validate Session Status:
+verify if the session id(stored in jwt) is active in the sesion table.
+ 
+-Inactive session handling:If status is not active block access,requiring the user to log in again.
+ 
+3.Logout flow
+ 
+-User logs out:When the user initiates a logout,capture the session id from the jwt.
+-Update Session Record:
+-set logout_at:Record the time stamp for logout
+-Change-status:update the status to logged_out.
+ 
+INVALDATE TOKEN(OPTIONAL):
+You can implement JWT blacklisting or token revocation using the session status to prevent reuse of logged-out-session.
+ 
+ADDITIONAL NOTES:
+JWT WITH SESSION DATA:Including sssion_id in JWT allows validation  against the session table,ensuring the token is only valid  for active session.
+ 
+SECURITY CONSIDERATION
+-logging out should update the session table t avoid resuing the same token after logout.
