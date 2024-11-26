@@ -1,50 +1,40 @@
-JWT Session Management Flow with Session Table.
- 
-Purpose:
- 
-The Session table will store details of each active and expired session, allowing for robust management of user sessions, including tracking login/logout times, identifying active sessions, and monitoring activity by capturing IP address and user-agent information.This table helps implement secure logout by recording session data and supporting session invalidation.
- 
- 
-Session Table
-session_id:UUID
-user_id:UUID (Uique id of the current logged in user)
-logged_in_at:DateTime(Timestamp of when the user logged in Mandatory)
-logout_at:Datetime (Timestampfor logout. set upon usr logout)
-client_ip:string(IP address of client at the time of login(we will get that from request))
-user_agent:string (we will get this from request)
-status:str (Active/expired/logged_out)
- 
-Workflow
-1.Login Flow
-- User Logs in:WHen the user successfully logs in,generate a JWT token and initiate a session i the session table.
- 
-- CREATE SESSION RECORD
--Insert session_id
--Assign user_id :Link the session to the user_id of logged in user
--Record logged_in_at
--Capture client_ip:Retrive the IP address from login request and store it
--Store user_agent :Retrive the user agent string from login request.
--Set status:Set the initial status of the session to active.
- 
-2. Token Verification(Middleware)
--Check token validity:Each request includes the JWT in headers,Which is verified to check if it is valid and unexpred.
--Validate Session Status:
-verify if the session id(stored in jwt) is active in the sesion table.
- 
--Inactive session handling:If status is not active block access,requiring the user to log in again.
- 
-3.Logout flow
- 
--User logs out:When the user initiates a logout,capture the session id from the jwt.
--Update Session Record:
--set logout_at:Record the time stamp for logout
--Change-status:update the status to logged_out.
- 
-INVALDATE TOKEN(OPTIONAL):
-You can implement JWT blacklisting or token revocation using the session status to prevent reuse of logged-out-session.
- 
-ADDITIONAL NOTES:
-JWT WITH SESSION DATA:Including sssion_id in JWT allows validation  against the session table,ensuring the token is only valid  for active session.
- 
-SECURITY CONSIDERATION
--logging out should update the session table t avoid resuing the same token after logout.
+import base64
+import csv
+from csv import DictWriter
+import os
+from os import path
+
+
+def ProcessPDF(WDir, FName):
+    with open(WDir + FName + ".pdf", "rb") as Tempfile:  # Open the PDF file
+        my_string = base64.b64encode(Tempfile.read())  # Get the PDF file Contents in base64 format
+        my_string = my_string.decode('ascii')  # Remove the binary reference from the base64 code
+
+    Data_ = {}  # Creating a dictionary for the CSV headers
+    field_names = ['Source']
+    [field_names.append('B' + str(i)) for i in range(35)]
+
+    CSV_Dir = WDir + 'PDFs.csv'
+
+    if not path.exists(CSV_Dir):  # Create the CSV file and add the headers
+        with open(CSV_Dir, 'w', encoding='UTF8') as f:
+            writer = csv.writer(f)
+            writer.writerow(field_names)
+            f.close()
+
+    with open(CSV_Dir, 'a', encoding="UTF8") as f:  # add the PDF base64 code into the CSV file
+        NRow = DictWriter(f, fieldnames=field_names, lineterminator='\n')
+        Data_ = {'Source': FName}
+        for j in range(
+                int(len(my_string) / 32000) + 1):  # break the base64 code into portions of 32000 charachters before saving them into the CSV file to avoid the characters length limitation
+            Data_['B' + str(j)] = my_string[j * 32000:(j + 1) * 32000]
+        NRow.writerow(Data_)
+
+
+################################################
+
+WDir = "C:\\Vaishali\\Learning\\PowerBI\\Desktop\\PDFViewerPOC\\Input\\PDF\\"  # Make sure to replace / with // for python to treat the text as a directory (Path)
+for file in os.listdir(WDir):  # iterate through the PDF files in the directory and extract the contents to the CSV file
+    if os.path.isfile(os.path.join(WDir, file)) and file.lower().endswith(".pdf"):
+        FN = file.rsplit(".", 1)[0]
+        ProcessPDF(WDir, FN)
