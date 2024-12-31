@@ -28,3 +28,117 @@ with open(output_file, 'w', newline="") as f:
     df.to_csv(f, index=False, header=True)
 
 print(f"Data exported to {output_file}")
+
+def export_to_excel(
+        self,
+        db: Session,
+        monthly_expense_from: date,
+        monthly_expense_to: date,
+        staff_id: Optional[UUID] = None,
+        van_id: Optional[UUID] = None,
+    ) -> StreamingResponse:
+
+        try:
+            filters = {
+                "monthly_expense_from": monthly_expense_from,
+                "monthly_expense_to": monthly_expense_to,
+                "staff_id": staff_id,
+                "van_id": van_id,
+            }
+            # Remove None values to only include provided filters
+            filters = {
+                key: value for key, value in filters.items() if value is not None
+            }
+
+            report_data = self.repository.find(
+                db, 0, 0, None, filters, "expense_month", False
+            )
+
+            if not report_data.items:
+                raise ValueError("No data available for the specified date range.")
+
+            json_data = self.create_json_from_results_for_date_range(
+                report_data.items, report_data.match_count, 0, 0
+            )
+
+            rows = json_data["items"]["content"]["summary"]["rows"]
+            fields = json_data["items"]["content"]["summary"]["fields"]
+
+            cleaned_columns = [
+                field["column_name"].replace("<br>", "").strip()
+                for field in fields
+                if "column_name" in field
+            ]
+
+            df = [[rows, cleaned_columns]]
+
+            # Create DataFrame for filter criteria
+            df = pd.DataFrame(df, columns=["", ""])
+
+            # Retrieve technician name and van number based on the provided filters
+            tech_name, van_number = None, None
+ 
+            if staff_id:
+                tech_name, van_number = (
+                    self.repository.get_tech_name_and_van_number_by_staff_id(
+                        db, staff_id
+                    )
+                )
+ 
+            if van_id:
+                tech_name, van_number = (
+                    self.repository.get_tech_name_and_van_number_by_van_id(db, van_id)
+                )
+ 
+            # Add dynamic headers for date range, technician name, and van number
+            header_info = {
+                "Date Range": (
+                    f"{monthly_expense_from} to {monthly_expense_to}"
+                    if monthly_expense_from and monthly_expense_to
+                    else "None"
+                ),
+                "Technician Name": tech_name if tech_name else "None",
+                "Van Number": van_number if van_number else "None",
+            }
+ 
+            # Add dynamic headers for date range, technician name, and van number
+            header_info = {
+                "Date Range": (
+                    f"{monthly_expense_from} to {monthly_expense_to}"
+                    if monthly_expense_from and monthly_expense_to
+                    else "None"
+                ),
+                "Technician Name": tech_name if tech_name else "None",
+                "Van Number": van_number if van_number else "None",
+            }
+ 
+            # Create a DataFrame for the header info and concatenate with the main data
+            header_df = pd.DataFrame([header_info])
+            df = pd.concat([header_df, df], ignore_index=True)
+
+            csv_buffer = io.StringIO()
+            df.to_csv(csv_buffer, index=False)
+            csv_buffer.seek(0)
+
+            # Handle filename generation
+            if monthly_expense_from and monthly_expense_to:
+                filename = f"van_expense_report_{monthly_expense_from}_to_{monthly_expense_to}.csv"
+            else:
+                filename = "van_expense_report.csv"
+
+            response = StreamingResponse(
+                iter([csv_buffer.getvalue()]), media_type="text/csv"
+            )
+
+            response.headers["Content-Disposition"] = f"attachment; filename={filename}"
+            return response
+
+        except ValueError as ve:
+            logger.error(f"Error occurred while exporting: {ve}")
+            raise NotFoundException(detail="Data not found for Van Expense report")
+
+        except Exception as e:
+            logger.error(f"An unexpected error occurred while exporting to Excel: {e}")
+            raise AppConfigException(
+                detail="Internal server error while exporting to Excel."
+            )
