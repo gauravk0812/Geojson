@@ -1,33 +1,6 @@
 import pandas as pd
-
-# Example filter criteria
-filter_criteria = [
-    ['Criterion 1', 'Value A'],
-    ['Criterion 2', 'Value B']
-]
-
-# Create DataFrame for filter criteria
-filter_df = pd.DataFrame(filter_criteria, columns=["Description", "Value"])
-
-# Example actual data
-data = {
-    'column1': [1, 2, 3],
-    'column2': ['A', 'B', 'C']
-}
-
-df = pd.DataFrame(data)
-
-# Write the filter criteria and data to the CSV
-output_file = "filtered_data_with_criteria.csv"
-
-with open(output_file, 'w', newline="") as f:
-    # Write the filter criteria first (as header rows)
-    filter_df.to_csv(f, index=False, header=True)
-    
-    # Then write the actual data below the filter criteria
-    df.to_csv(f, index=False, header=True)
-
-print(f"Data exported to {output_file}")
+import io
+from fastapi.responses import StreamingResponse
 
 def export_to_excel(
         self,
@@ -70,54 +43,29 @@ def export_to_excel(
                 if "column_name" in field
             ]
 
-            df = [[rows, cleaned_columns]]
+            # Create DataFrame for report rows
+            df_data = pd.DataFrame(rows, columns=cleaned_columns)
+
+            # Prepare filter criteria
+            filter_criteria = [
+                ['Date Range', f"{monthly_expense_from} to {monthly_expense_to}" if monthly_expense_from and monthly_expense_to else 'None'],
+                ['Technician Name', staff_id if staff_id else 'None'],
+                ['Van Number', van_id if van_id else 'None']
+            ]
 
             # Create DataFrame for filter criteria
-            df = pd.DataFrame(df, columns=["", ""])
+            filter_df = pd.DataFrame(filter_criteria, columns=["Description", "Value"])
 
-            # Retrieve technician name and van number based on the provided filters
-            tech_name, van_number = None, None
- 
-            if staff_id:
-                tech_name, van_number = (
-                    self.repository.get_tech_name_and_van_number_by_staff_id(
-                        db, staff_id
-                    )
-                )
- 
-            if van_id:
-                tech_name, van_number = (
-                    self.repository.get_tech_name_and_van_number_by_van_id(db, van_id)
-                )
- 
-            # Add dynamic headers for date range, technician name, and van number
-            header_info = {
-                "Date Range": (
-                    f"{monthly_expense_from} to {monthly_expense_to}"
-                    if monthly_expense_from and monthly_expense_to
-                    else "None"
-                ),
-                "Technician Name": tech_name if tech_name else "None",
-                "Van Number": van_number if van_number else "None",
-            }
- 
-            # Add dynamic headers for date range, technician name, and van number
-            header_info = {
-                "Date Range": (
-                    f"{monthly_expense_from} to {monthly_expense_to}"
-                    if monthly_expense_from and monthly_expense_to
-                    else "None"
-                ),
-                "Technician Name": tech_name if tech_name else "None",
-                "Van Number": van_number if van_number else "None",
-            }
- 
-            # Create a DataFrame for the header info and concatenate with the main data
-            header_df = pd.DataFrame([header_info])
-            df = pd.concat([header_df, df], ignore_index=True)
-
+            # Create CSV output with both filter criteria and report data
             csv_buffer = io.StringIO()
-            df.to_csv(csv_buffer, index=False)
+
+            with open(csv_buffer, 'w', newline="") as f:
+                # Write filter criteria first (as header rows)
+                filter_df.to_csv(f, index=False, header=True)
+
+                # Then write the actual data below the filter criteria
+                df_data.to_csv(f, index=False, header=True)
+
             csv_buffer.seek(0)
 
             # Handle filename generation
