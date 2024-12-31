@@ -1,1 +1,2 @@
-https://stackblitz.com/edit/tfemgr5m?file=.gitignore
+ticks: {           // Rotate the labels by 180 degreesmirror: true, // Make sure the labels face outwardcallback: function(value) {             return value; // Optional: customize the label if needed          },          maxRotation: 0, // Set to 0 to prevent label rotation due to tick auto adjustmentminRotation: 180 // Rotate the labels by 180 degrees } }
+ 
