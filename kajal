@@ -1,92 +1,19 @@
-import pandas as pd
-import io
-from fastapi.responses import StreamingResponse
+@app.patch("/drafts/{draft_id}/complete/")
+def mark_as_complete(draft_id: int, db: Session = Depends(get_db)):
+    draft = db.query(DraftTable).filter(DraftTable.id == draft_id).first()
+    if not draft:
+        raise HTTPException(status_code=404, detail="Draft not found")
+    draft.is_complete = True
+    db.commit()
+    return {"message": "Draft marked as complete"}
 
-def export_to_excel(
-        self,
-        db: Session,
-        monthly_expense_from: date,
-        monthly_expense_to: date,
-        staff_id: Optional[UUID] = None,
-        van_id: Optional[UUID] = None,
-    ) -> StreamingResponse:
-
-        try:
-            filters = {
-                "monthly_expense_from": monthly_expense_from,
-                "monthly_expense_to": monthly_expense_to,
-                "staff_id": staff_id,
-                "van_id": van_id,
-            }
-            # Remove None values to only include provided filters
-            filters = {
-                key: value for key, value in filters.items() if value is not None
-            }
-
-            report_data = self.repository.find(
-                db, 0, 0, None, filters, "expense_month", False
-            )
-
-            if not report_data.items:
-                raise ValueError("No data available for the specified date range.")
-
-            json_data = self.create_json_from_results_for_date_range(
-                report_data.items, report_data.match_count, 0, 0
-            )
-
-            rows = json_data["items"]["content"]["summary"]["rows"]
-            fields = json_data["items"]["content"]["summary"]["fields"]
-
-            cleaned_columns = [
-                field["column_name"].replace("<br>", "").strip()
-                for field in fields
-                if "column_name" in field
-            ]
-
-            # Create DataFrame for report rows
-            df_data = pd.DataFrame(rows, columns=cleaned_columns)
-
-            # Prepare filter criteria
-            filter_criteria = [
-                ['Date Range', f"{monthly_expense_from} to {monthly_expense_to}" if monthly_expense_from and monthly_expense_to else 'None'],
-                ['Technician Name', staff_id if staff_id else 'None'],
-                ['Van Number', van_id if van_id else 'None']
-            ]
-
-            # Create DataFrame for filter criteria
-            filter_df = pd.DataFrame(filter_criteria, columns=["Description", "Value"])
-
-            # Create CSV output with both filter criteria and report data
-            csv_buffer = io.StringIO()
-
-            with open(csv_buffer, 'w', newline="") as f:
-                # Write filter criteria first (as header rows)
-                filter_df.to_csv(f, index=False, header=True)
-
-                # Then write the actual data below the filter criteria
-                df_data.to_csv(f, index=False, header=True)
-
-            csv_buffer.seek(0)
-
-            # Handle filename generation
-            if monthly_expense_from and monthly_expense_to:
-                filename = f"van_expense_report_{monthly_expense_from}_to_{monthly_expense_to}.csv"
-            else:
-                filename = "van_expense_report.csv"
-
-            response = StreamingResponse(
-                iter([csv_buffer.getvalue()]), media_type="text/csv"
-            )
-
-            response.headers["Content-Disposition"] = f"attachment; filename={filename}"
-            return response
-
-        except ValueError as ve:
-            logger.error(f"Error occurred while exporting: {ve}")
-            raise NotFoundException(detail="Data not found for Van Expense report")
-
-        except Exception as e:
-            logger.error(f"An unexpected error occurred while exporting to Excel: {e}")
-            raise AppConfigException(
-                detail="Internal server error while exporting to Excel."
-            )
+@app.post("/promote/{draft_id}/")
+def promote_to_master(draft_id: int, db: Session = Depends(get_db)):
+    draft = db.query(DraftTable).filter(DraftTable.id == draft_id, DraftTable.is_complete == True).first()
+    if not draft:
+        raise HTTPException(status_code=404, detail="Draft not found or incomplete")
+    new_master = MasterTable(data=draft.data)
+    db.add(new_master)
+    db.delete(draft)  # Remove draft after promotion
+    db.commit()
+    return {"message": "Draft promoted to master table", "master_id": new_master.id}
