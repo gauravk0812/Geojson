@@ -1,1 +1,6 @@
-https://maxwell-ilai.github.io/Leaflet.SidePanel/examples/
+@include mat.all-component-densities(-3);
+ 
+.mat-form-field {
+  @include mat.form-field-density(-2);
+}
+@use "@angular/material" as mat;
