@@ -1,22 +1,13 @@
-protected async onSelectCountry(event: MatAutocompleteActivatedEvent) {
+async onSelectCountryName(event: MatAutocompleteActivatedEvent) {
     try {
       this.showLoader();
-      this.clearInput('CompanyCode');
-      this.selectCountry = this.filteredCountryName.filter(
+      let selectedCountryName: ICountry[] = this.filteredCountryName.filter(
         ({ Name }) => Name == event.option?.value
       );
-      if (
-        !Utils.isEmptyArray(this.selectCountry) &&
-        this.selectCountry[0].Code
-      ) {
-        this.customerForm
-          .get('CompanyIsoCountryCode')
-          ?.setValue(this.selectCountry[0].Code);
-      }
-      this.companyList = [];
-      this.filteredCompanyName = [];
-      if (this.customerForm.get('SourceErp')?.value) {
-        this.loadCompaniesAutoCompleteFilter();
+      if (selectedCountryName[0].Code) {
+        this.companyForm
+          .get('IsoCountryCode')
+          ?.setValue(selectedCountryName[0].Code);
       }
     } catch (ex: unknown) {
       this.updateErrorFromException(ex);
@@ -24,3 +15,4 @@ protected async onSelectCountry(event: MatAutocompleteActivatedEvent) {
       this.hideLoader();
     }
   }
+ 
