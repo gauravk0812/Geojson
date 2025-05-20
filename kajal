@@ -1,18 +1,1 @@
-async onSelectCountryName(event: MatAutocompleteActivatedEvent) {
-    try {
-      this.showLoader();
-      let selectedCountryName: ICountry[] = this.filteredCountryName.filter(
-        ({ Name }) => Name == event.option?.value
-      );
-      if (selectedCountryName[0].Code) {
-        this.companyForm
-          .get('IsoCountryCode')
-          ?.setValue(selectedCountryName[0].Code);
-      }
-    } catch (ex: unknown) {
-      this.updateErrorFromException(ex);
-    } finally {
-      this.hideLoader();
-    }
-  }
- 
+AIzaSyC_p94bUm-BgsS70WSy4VYqCIqCSOctZFI
