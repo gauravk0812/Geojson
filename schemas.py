@@ -1,29 +1,22 @@
-from datetime import datetime
-from typing import Optional
 from pydantic import BaseModel
-from core.schemas.fts_linq_base_schemas import FtsLinqBaseSchema
-from modules.user.schemas import User
-from uuid import UUID
+from core.schemas.petal_base_schemas import PetalBaseSchema
 
+# Base schema for a Document
+class DocumentBase(BaseModel):
+    name: str
+    author: str
+    doc_type: str
+    storage_type: str
 
-class AuthenticationResponse(BaseModel):
-    user: User
-    access_token: str
-    session_id: UUID
-    refresh_token: str
-    expires_at: datetime
+# Schema for creating a Document (inherits from Document)
+class DocumentCreate(DocumentBase):
+    pass
 
+# Schema for updating a Document (inherits from Document)
+class DocumentUpdate(DocumentBase):
+    pass
 
-class LoginRequest(BaseModel):
-    username: str
-    password: str
-
-
-class Config(FtsLinqBaseSchema):
-    # id: UUID
-    param_name: str
-    param_value: str
-    param_group: str
-
+# Final Document model, which also inherits from PetalBaseSchema
+class Document(DocumentBase, PetalBaseSchema): 
     class Config:
         from_attributes = True
