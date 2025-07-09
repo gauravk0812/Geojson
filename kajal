@@ -1,1 +1,362 @@
-no worries
+import { Component, Inject, OnDestroy, OnInit } from '@angular/core';
+import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+import { interval, Subscription } from 'rxjs';
+import { take } from 'rxjs/operators';
+import { BaseDialogComponent } from '../base-dialog-component/base-dialog.component';
+import { NGXLogger } from 'ngx-logger';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { Overlay } from '@angular/cdk/overlay';
+import { BroadcastService } from '../../services/broadcast.service';
+import { AppStateService } from '../../services/app-state-service';
+ 
+/**
+ * Interface defining the data structure for session expiry dialog
+ */
+export interface SessionExpiryDialogData {
+  sessionExpiryAt: Date; // time when the session is scheduled to expire
+}
+ 
+/**
+ * Enum defining possible actions user can take when session is about to expire
+ */
+export enum SESSION_EXPIRY_WARNING_ACTION {
+  EXTEND_SESSION = 'extend_session',  // User chooses to extend session and stay logged in
+  LOGOUT = 'logout',      // User chooses to logout immediately
+}
+ 
+/**
+ * Type defining the current state of the dialog
+ */
+export type DialogState = 'warning' | 'expired';
+ 
+/**
+ * Component for handling session timeout warnings and expired sessions
+ * Displays countdown timer and provides options for user action
+ */
+@Component({
+  selector: 'app-session-expiry-dialog',
+  templateUrl: './session-expiry-dialog.component.html',
+  styleUrls: ['./session-expiry-dialog.component.scss'],
+})
+export class SessionExpiryDialogComponent
+  extends BaseDialogComponent
+  implements OnInit, OnDestroy
+{
+  // Time remaining before session expires (in seconds)
+  sessionExpiryAt: Date;
+ 
+  // Current state of the dialog (warning or expired)
+  dialogState: DialogState = 'warning';
+ 
+  // Subscription for countdown timer
+  private countdownSub?: Subscription;
+ 
+  // Expose enum to template
+  readonly SESSION_EXPIRY_WARNING_ACTION = SESSION_EXPIRY_WARNING_ACTION;
+ 
+  constructor(
+    logger: NGXLogger,
+    snackBar: MatSnackBar,
+    overlay: Overlay,
+    broadcastService: BroadcastService,
+    appStateService: AppStateService,
+     dialogRef: MatDialogRef<SessionExpiryDialogComponent>,
+    @Inject(MAT_DIALOG_DATA) public data: SessionExpiryDialogData
+  ) {
+    super(
+      logger,
+      snackBar,
+      overlay,
+      broadcastService,
+      appStateService,
+      dialogRef
+    );
+   
+    // Initialize time left from dialog data
+    this.sessionExpiryAt = data.sessionExpiryAt;
+  }
+ 
+  /**
+   * Component initialization
+   * Starts the countdown timer when dialog opens
+   */
+  ngOnInit(): void {
+    this.startCountdown();
+  }
+ 
+  /**
+   * Component cleanup
+   * Unsubscribes from countdown timer to prevent memory leaks
+   */
+  override ngOnDestroy(): void {
+    this.stopCountdown();
+    super.ngOnDestroy();
+  }
+ 
+  //#region User Action Methods
+ 
+  /**
+   * Handles user choice to stay on page and extend session
+   * Closes dialog with STAY_ON_PAGE action
+   */
+  extendTheSession(): void {
+    this.stopCountdown();
+    this.dialogRef.close(SESSION_EXPIRY_WARNING_ACTION.EXTEND_SESSION);
+  }
+ 
+  /**
+   * Handles user choice to logout immediately
+   * Closes dialog with LOGOUT action
+   */
+  logout(): void {
+    this.stopCountdown();
+    this.dialogRef.close(SESSION_EXPIRY_WARNING_ACTION.LOGOUT);
+  }
+ 
+  /**
+   * Handles automatic logout when session has expired
+   * Forces logout action since session is no longer valid
+   */
+  loginAgain(): void {
+    this.stopCountdown();
+    this.dialogRef.close(SESSION_EXPIRY_WARNING_ACTION.LOGOUT);
+  }
+ 
+  //#endregion
+ 
+  //#region State Check Methods
+ 
+  /**
+   * Checks if dialog is in warning state
+   * @returns true if showing session expiry warning
+   */
+  get isWarningState(): boolean {
+    return this.dialogState === 'warning';
+  }
+ 
+  /**
+   * Checks if dialog is in expired state
+   * @returns true if session has already expired
+   */
+  get isExpiredState(): boolean {
+    return this.dialogState === 'expired';
+  }
+ 
+  //#endregion
+ 
+  //#region Utility Methods
+ 
+ 
+  public getRemainingTIme(): number {
+    let currentTIme = new Date();
+    let timeLeft : number = (this.sessionExpiryAt.getTime() - currentTIme.getTime())/1000;
+    return Math.floor(timeLeft);
+  }
+  /**
+   * Gets the appropriate warning message based on current state
+   * @returns Warning message string
+   */
+  get warningMessage(): string {
+    if (this.isExpiredState) {
+      return 'Your session has expired. Please log in again to continue.';
+    } else {
+      let timeRemaining = this.getRemainingTIme();
+      return `Your session will expire in ${timeRemaining}s. Would you like to stay logged in?`;
+    }
+  }
+ 
+  /**
+   * Gets the appropriate dialog title based on current state
+   * @returns Dialog title string
+   */
+  get dialogTitle(): string {
+    return this.isExpiredState ? 'Session Expired' : 'Session Timeout Warning';
+  }
+ 
+  //#endregion
+ 
+  //#region Countdown Management
+ 
+  /**
+   * Starts the countdown timer
+   * Updates timeLeft every second and handles session expiry
+   */
+  private startCountdown(): void {
+    // Ensure we don't have multiple timers running
+    this.stopCountdown();
+ 
+    let timeLeft= this.getRemainingTIme();
+    // Only start countdown if there's time left
+    if (timeLeft <= 0) {
+      this.handleSessionExpired();
+      return;
+    }
+ 
+    this.countdownSub = interval(1000)
+      .pipe(take(timeLeft + 1)) // +1 to include the final countdown
+      .subscribe({
+        next: (count) => {
+          let timeLeft: number = this.getRemainingTIme();
+          if (timeLeft <= 0) {
+            this.handleSessionExpired();
+          }
+        },
+        complete: () => {
+          // This will be called after the timer completes
+          let timeLeft: number = this.getRemainingTIme();
+          if (timeLeft <= 0) {
+            this.handleSessionExpired();
+          }
+        },
+        error: (error) => {
+          this.logger.error('Error in countdown timer:', error);
+          this.handleSessionExpired();
+        }
+      });
+  }
+ 
+  /**
+   * Stops the countdown timer
+   * Unsubscribes from the timer subscription
+   */
+  private stopCountdown(): void {
+    if (this.countdownSub) {
+      this.countdownSub.unsubscribe();
+      this.countdownSub = undefined;
+    }
+  }
+ 
+  /**
+   * Handles session expiry
+   * Switches dialog to expired state and makes it non-dismissible
+   */
+  private handleSessionExpired(): void {
+    this.dialogState = 'expired';
+   
+    // Make dialog non-dismissible when session has expired
+    this.dialogRef.disableClose = true;
+   
+    // Stop the countdown since session has expired
+    this.stopCountdown();
+   
+    // Log session expiry event
+    this.logger.warn('User session has expired');
+  }
+ 
+  //#endregion
+ 
+ 
+ 
+  //#endregion
+}
+ 
+
+
+
+##############################################################################
+
+<div
+  class="session-dialog"
+  mat-dialog-content
+  role="dialog"
+  aria-modal="true"
+  [attr.aria-labelledby]="isWarningState ? 'warning-title' : 'expired-title'"
+>
+  <!-- Warning State -->
+  <div *ngIf="isWarningState" class="dialog-content">
+    <!-- Header -->
+    <div class="d-flex align-items-center mb-3">
+      <mat-icon class="text-warning me-2">schedule</mat-icon>
+      <h2 id="warning-title" class="mb-0 text-dark" mat-dialog-title>
+        Session Expiring Soon
+      </h2>
+    </div>
+ 
+    <!-- Body -->
+    <div class="dialog-body mb-4">
+      <div class="d-flex justify-content-center mb-3">
+        <mat-card class="w-100" appearance="outlined">
+          <mat-card-content class="text-center p-4">
+            <div class="d-flex flex-column align-items-center">
+              <span class="display-4 fw-bold text-primary mb-1">
+                {{ getRemainingTIme() }}s</span>
+              <span class="text-muted fs-6">remaining</span>
+            </div>
+          </mat-card-content>
+        </mat-card>
+      </div>
+ 
+      <p class="text-center text-muted mb-0">
+        Your session will expire automatically unless you choose to extend it.
+      </p>
+    </div>
+ 
+    <!-- Actions -->
+    <div class="d-flex gap-2 justify-content-end" mat-dialog-actions>
+      <button
+        mat-stroked-button
+        class="btn-outline-secondary"
+        (click)="logout()"
+        aria-label="Log out now"
+      >
+        <mat-icon class="me-1">logout</mat-icon>
+        Log Out Now
+      </button>
+ 
+      <button
+        mat-raised-button
+        color="primary"
+        (click)="extendTheSession()"
+        cdkFocusInitial
+        aria-label="Extend session"
+      >
+        <mat-icon class="me-1">refresh</mat-icon>
+        Extend Session
+      </button>
+    </div>
+  </div>
+ 
+  <!-- Expired State -->
+  <div *ngIf="isExpiredState" class="dialog-content">
+    <!-- Header -->
+    <div class="d-flex align-items-center mb-3">
+      <mat-icon class="text-danger me-2">warning</mat-icon>
+      <h2 id="expired-title" class="mb-0 text-dark" mat-dialog-title>
+        Session Expired
+      </h2>
+    </div>
+ 
+    <!-- Body -->
+    <div class="dialog-body mb-4">
+      <mat-card class="w-100" appearance="outlined">
+        <mat-card-content class="text-center p-4">
+          <div class="d-flex flex-column align-items-center">
+            <mat-icon class="text-secondary mb-3">lock</mat-icon>
+            <p class="fw-semibold text-dark mb-2">
+              Your session has expired for security reasons.
+            </p>
+            <p class="text-muted mb-0">
+              Please log in again to continue using the application.
+            </p>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    </div>
+ 
+    <!-- Actions -->
+    <div class="d-flex justify-content-center" mat-dialog-actions>
+      <button
+        mat-raised-button
+        color="primary"
+        (click)="loginAgain()"
+        cdkFocusInitial
+        aria-label="Log in again"
+      >
+        <mat-icon class="me-1">login</mat-icon>
+        Log In Again
+      </button>
+    </div>
+  </div>
+</div>
+ 
+ 
