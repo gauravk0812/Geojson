@@ -24,3 +24,62 @@ response = requests.post(url, json=payload)
 # Print response
 print("Status Code:", response.status_code)
 print("Response JSON:", response.json())
+
+
+import requests
+ 
+# Step 1: Authenticate
+auth_payload = {
+    "method": "Authenticate",
+    "params": {
+        "userName": "your@email.com",    # Replace with your credentials
+        "password": "your_password",
+        "database": "your_database"
+    },
+    "id": "1"
+}
+ 
+auth_response = requests.post("https://my.geotab.com/apiv1", json=auth_payload)
+auth_result = auth_response.json()["result"]
+ 
+credentials = auth_result["credentials"]
+server = auth_result["path"]
+base_url = f"https://{server}/apiv1"
+ 
+# Step 2: Get DriverChange records
+driver_change_payload = {
+    "method": "Get",
+    "params": {
+        "typeName": "DriverChange",
+        "credentials": credentials
+    },
+    "id": "1"
+}
+ 
+driver_change_response = requests.post(base_url, json=driver_change_payload)
+driver_changes = driver_change_response.json()["result"]
+ 
+# Step 3: Extract unique driver IDs and optionally fetch their user info
+unique_driver_ids = {change['driver']['id'] for change in driver_changes if 'driver' in change}
+ 
+print("Unique Driver IDs Assigned to Vehicles:")
+for driver_id in unique_driver_ids:
+    print(driver_id)
+ 
+# Optional: Get full user details for each driver
+user_payload = {
+    "method": "Get",
+    "params": {
+        "typeName": "User",
+        "credentials": credentials
+    },
+    "id": "1"
+}
+ 
+user_response = requests.post(base_url, json=user_payload)
+users = user_response.json()["result"]
+ 
+print("\nDriver Details:")
+for user in users:
+    if user['id'] in unique_driver_ids:
+        print(f"Name: {user.get('name')}, ID: {user.get('id')}, Email: {user.get('name')}")
