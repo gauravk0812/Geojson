@@ -1,1 +1,42 @@
-https://teams.microsoft.com/l/meetup-join/19%3ameeting_MzM2MDQ4ODQtYjlmMi00ZDVjLWJlZWQtMTlkN2I3N2M0ZWMx%40thread.v2/0?context=%7b%22Tid%22%3a%22fabb61b8-3afe-4e75-b934-a47f782b8cd7%22%2c%22Oid%22%3a%226517d9e2-d4d3-4ede-82f6-aad0c6b0d1e8%22%7d
+::ng-deep .mat-mdc-tab {
+  color: #666 !important;  /* Dark grey text */
+  font-family: Arial, sans-serif; /* Add a clean font style similar to the screenshot */
+  border-radius: 5px 5px 0 0;  /* Add a soft corner for the tabs */
+  margin-right: 5px; /* Slight gap between tabs */
+  padding: 8px 16px; /* Adjust padding to improve look */
+  border: 1px solid #ccc; /* Light border */
+}
+::ng-deep .mat-mdc-tab {
+  // background-color: #f0f0f0 !important; /* Light grey background */
+  color: #666 !important; /* Dark grey text */
+  border-radius: 5px 5px 0 0; /* Rounded corners at the top */
+  margin-right: 5px; /* Small spacing between tabs */
+  padding: 8px 16px; /* Adjust padding for better tab size */
+  border: 1px solid #ccc; /* Border for the tabs */
+  border-bottom: 0; /* Remove the bottom border */
+}
+ 
+::ng-deep .mat-mdc-tab {
+  // background-color: #f0f0f0 !important; /* Grey background for inactive tabs */
+  color: #666 !important; /* Grey text color for inactive tabs */
+  border-radius: 5px 5px 0 0; /* Rounded corners only at the top */
+  padding: 8px 16px; /* Adjust padding for a cleaner look */
+  border: 1px solid #ccc; /* Light border around the tab */
+  border-bottom: none; /* Remove the bottom border for all tabs */
+}
+ 
+/* Style for the active tab */
+::ng-deep .mat-mdc-tab.mdc-tab--active {
+  background-color: #3f51b5 !important; /* Blue background for the active tab */
+  color: white !important; /* White text for the active tab */
+  border-bottom: none !important; /* Remove bottom border for the active tab */
+}
+ 
+/* Ensure grey text color for inactive tabs */
+::ng-deep .mat-mdc-tab:not(.mdc-tab--active) .mdc-tab__text-label {
+  color: #666 !important; /* Grey text for inactive tabs */
+}
+ 
+::ng-deep .mat-mdc-tab.mdc-tab--active .mdc-tab__text-label {
+  color: white !important;
+}
