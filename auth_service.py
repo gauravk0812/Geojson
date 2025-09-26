@@ -2,7 +2,7 @@ import uuid
 from injector import inject
 from fastapi_injector import Injected
 
-from datetime import timedelta, timezone, datetime, time
+from datetime import timedelta, timezone, datetime
 import json
 import secrets
 import xmltodict
@@ -16,6 +16,7 @@ from core.contracts.iauth_service import IAuthService
 import jwt
 from fastapi.security import OAuth2PasswordBearer
 from core.contracts.istaff_repository import IStaffRepository
+from core.contracts.ivan_repository import IVanRepository
 from core.exceptions.action_forbidden import ActionForbiddenException
 from core.exceptions.not_authorized_exception import NotAuthorizedException
 import base64
@@ -24,6 +25,7 @@ from helpers.log import get_logger
 from modules.user.schemas import User
 from core.schemas.user_session import UserSession
 
+
 # from saml import init_saml_auth, prepare_from_fastapi_request
 from core.contracts.iuser_session_repository import IUserSessionRepository
 from core.contracts.iuser_repository import IUserRepository
@@ -31,7 +33,7 @@ from core.contracts.iuser_repository import IUserRepository
 
 logging = get_logger(__name__)
 
-ALGORITHM = "HS256"
+ALGORITHM = "RS256"
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
@@ -50,6 +52,7 @@ class AuthenticationService(IAuthService):
         auth_repository: IUserSessionRepository = Injected(IUserSessionRepository),
         user_repository: IUserRepository = Injected(IUserRepository),
         staff_repository: IStaffRepository = Injected(IStaffRepository),
+        van_repository: IVanRepository = Injected(IVanRepository),
     ):
         """
         Constructor
@@ -57,6 +60,9 @@ class AuthenticationService(IAuthService):
         self.user_session_repository = auth_repository
         self.user_repository = user_repository
         self.staff_repository = staff_repository
+        self.van_repository = van_repository
+        self._private_key = self.user_session_repository.get_private_key()
+        self._public_key = self.user_session_repository.get_public_key()
 
     def login(self, username: str, password: str, client_ip: str, user_agent: str):
         """
@@ -83,11 +89,16 @@ class AuthenticationService(IAuthService):
         access_token: str = self._create_access_token(
             user=user, user_session=user_session, expires_at=expires_at
         )
-        # Get staff_id
+        # Get staff_id and van_id
         staff = self.staff_repository.get_by_email(user.email)
         staff_id = staff.id if staff else None
-        # Update the user object with the staff_id
+        van = self.van_repository.get_by_email(user.email)
+        van_id = van.id if van else None
+        staff_title = staff.title if staff else None
+        # Update the user object with the staff_id and van_id
         user.staff_id = staff_id
+        user.van_id = van_id
+        user.title = staff_title
 
         return {
             "user": user,
@@ -123,11 +134,17 @@ class AuthenticationService(IAuthService):
             user=user, user_session=user_session, expires_at=expires_at
         )
 
-        # Get staff_id
+        # Get staff_id and van_id
         staff = self.staff_repository.get_by_email(user.email)
         staff_id = staff.id if staff else None
-        # Update the user object with the staff_id
+        van = self.van_repository.get_by_email(user.email)
+        van_id = van.id if van else None
+        staff_title = staff.title if staff else None
+        # Update the user object with the staff_id and van_id
         user.staff_id = staff_id
+        user.van_id = van_id
+        user.title = staff_title
+
         return {
             "user": user,
             "access_token": new_access_token,
@@ -143,23 +160,22 @@ class AuthenticationService(IAuthService):
         Logs out the user by invalidating the session associated with the given token.
         """
         try:
-            secret_key = self.user_session_repository.get_secret_key()
 
-            payload = jwt.decode(token, secret_key, algorithms=[ALGORITHM])
+            payload = jwt.decode(token, self._public_key, algorithms=[ALGORITHM])
             session_id_str = payload.get("session_id")
             session_id: UUID = UUID(session_id_str)
             user_session: UserSession = self.user_session_repository.get_by_id(
                 session_id
             )
             if user_session:
-                user_session.logout_at = (datetime.now(timezone.utc),)
+                user_session.logout_at = (datetime.now(timezone.utc))
                 user_session.status = "logged_out"
                 self.user_session_repository.update(user_session)
 
         except jwt.ExpiredSignatureError:
             payload = jwt.decode(
                 token,
-                secret_key,
+                self._public_key,
                 algorithms=[ALGORITHM],
                 options={"verify_exp": False},
             )
@@ -190,11 +206,11 @@ class AuthenticationService(IAuthService):
 
         email: str = await self._extract_email_from_request(request=request)
         if not email:
-            raise ActionForbiddenException(detail="Authentication Failed")
+            return RedirectResponse(url="/not-authorized", status_code=303)
 
         user: User = self.user_repository.get_by_email(email)
         if not user:
-            raise ActionForbiddenException(detail="Authentication Failed")
+            return RedirectResponse(url="/not-authorized", status_code=303)
 
         user_roles = self.user_repository.get_user_roles(user.id)
 
@@ -225,6 +241,14 @@ class AuthenticationService(IAuthService):
         staff = self.staff_repository.get_by_email(user.email)
         staff_id = staff.id if staff else None
 
+        # Get van_id
+        van = self.van_repository.get_by_email(user.email)
+        van_id = van.id if van else None
+
+        # Get staff title
+        staff_title = staff.title if staff else None
+        user.title = staff_title
+
         # Create the dictionary of query parameters
         params = {
             "user_name": user.user_name,
@@ -244,6 +268,8 @@ class AuthenticationService(IAuthService):
             "expires_at": expires_at.isoformat(),
             "user_type": user.user_type,
             "staff_id": staff_id,
+            "van_id": van_id,
+            "title": staff_title,
         }
 
         # Encode the query parameters
@@ -293,6 +319,13 @@ class AuthenticationService(IAuthService):
         staff = self.staff_repository.get_by_email(user.email)
         staff_id = staff.id if staff else None
 
+        van = self.van_repository.get_by_email(user.email)
+        van_id = van.id if van else None
+
+        # Get staff title
+        staff_title = staff.title if staff else None
+        user.title = staff_title
+
         # Create the dictionary of query parameters
         params = {
             "user_name": user.user_name,
@@ -312,6 +345,8 @@ class AuthenticationService(IAuthService):
             "refresh_token": user_session.refresh_token,
             "expires_at": expires_at.isoformat(),
             "staff_id": staff_id,
+            "van_id": van_id,
+            "title": staff_title,
         }
 
         # Encode the query parameters
@@ -336,8 +371,7 @@ class AuthenticationService(IAuthService):
     def get_current_user(self, token: str = Depends(oauth2_scheme)):
         try:
             # Decode the token
-            secret_key = self.user_session_repository.get_secret_key()
-            payload = jwt.decode(token, secret_key, algorithms=["HS256"])
+            payload = jwt.decode(token, self._public_key, algorithms=["RS256"])
             username: str = payload.get("username")
             email: str = payload.get("email")
             if username is None or email is None:
@@ -394,8 +428,7 @@ class AuthenticationService(IAuthService):
         """
         Creates a JWT access token with the given user details and expiration time.
         """
-        secret_key = self.user_session_repository.get_secret_key()
-        current_time = current_time = datetime.utcnow()
+        current_time = current_time = datetime.now(timezone.utc)
 
         payload = {
             "user_id": str(user.id),
@@ -405,12 +438,12 @@ class AuthenticationService(IAuthService):
             "exp": expires_at,
         }
 
-        return jwt.encode(payload, secret_key, ALGORITHM)
+        return jwt.encode(payload, self._private_key, ALGORITHM)
 
     def _get_token_expiry_time(self) -> datetime:
         token_life_minutes = self.user_session_repository.get_token_life()
         expires_delta = timedelta(minutes=token_life_minutes)
-        current_time = current_time = datetime.utcnow()
+        current_time = datetime.now(tz=timezone.utc)
         expires_at = current_time + expires_delta
 
         return expires_at
