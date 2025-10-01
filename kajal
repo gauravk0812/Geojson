@@ -1,1 +1,11 @@
-AIzaSyAhEc_gjJmQKkW45G0k4A3c_pU4csIkLjE
+import pyautogui
+import time
+
+while True:
+    pyautogui.moveRel(10, 0, duration=0.25)   # move right
+    pyautogui.moveRel(-10, 0, duration=0.25)  # move left
+
+
+pip install pyautogui pyinstaller
+
+pyinstaller --onefile --noconsole mouse_jiggler.py
