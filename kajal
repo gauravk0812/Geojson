@@ -1,11 +1,31 @@
-import pyautogui
-import time
+import paramiko
 
-while True:
-    pyautogui.moveRel(10, 0, duration=0.25)   # move right
-    pyautogui.moveRel(-10, 0, duration=0.25)  # move left
+# Connection details
+hostname = "example.com"
+port = 22
+username = "your_username"
+password = "your_password"
 
+# Create SSH client
+ssh = paramiko.SSHClient()
+ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
-pip install pyautogui pyinstaller
+# Connect to server
+ssh.connect(hostname, port, username, password)
 
-pyinstaller --onefile --noconsole mouse_jiggler.py
+# Open SFTP session
+sftp = ssh.open_sftp()
+
+# Upload a document
+sftp.put("local_document.pdf", "/remote/path/document.pdf")
+
+# Download a document
+sftp.get("/remote/path/report.docx", "local_report.docx")
+
+# List files in a remote directory
+for file in sftp.listdir("/remote/path/"):
+    print(file)
+
+# Close SFTP and SSH
+sftp.close()
+ssh.close()
