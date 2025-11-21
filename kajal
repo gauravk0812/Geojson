@@ -1,31 +1,47 @@
-import paramiko
+protected showLoaderInComponent() {
+    this.showLoaderCounter++;
+ 
+    if (this.showLoaderCounter == 1) {
+      this.overlayRef = this.createCustomOverlay();
+ 
+      const spinnerComponent = new ComponentPortal(LoaderComponent);
+ 
+      this.overlayRef.attach(spinnerComponent);
+    }
+  }
+ 
+private createCustomOverlay(): OverlayRef {
+  const positionStrategy = this.overlay.position()
+    .flexibleConnectedTo(this.elementRef)  // attach to component
+    .withPositions([
+      {
+        originX: 'center',
+        originY: 'center',
+        overlayX: 'center',
+        overlayY: 'center',
+      }
+    ])
+    .withFlexibleDimensions(false)   
+    .withPush(false);      
+ 
+  const overlayConfig = new OverlayConfig({
+    hasBackdrop: true,
+    backdropClass: 'opaque-backdrop',
+    scrollStrategy: this.overlay.scrollStrategies.block(),
+    positionStrategy,
+  });
+ 
+  return this.overlay.create(overlayConfig);
+}
 
-# Connection details
-hostname = "example.com"
-port = 22
-username = "your_username"
-password = "your_password"
+##########################################################################################################
+@ViewChild('loaderContainer', { static: true }) loaderContainer!: ElementRef;
+ 
+const positionStrategy = this.overlay.position()
+  .flexibleConnectedTo(this.loaderContainer);
 
-# Create SSH client
-ssh = paramiko.SSHClient()
-ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+###########################################################################################################
 
-# Connect to server
-ssh.connect(hostname, port, username, password)
-
-# Open SFTP session
-sftp = ssh.open_sftp()
-
-# Upload a document
-sftp.put("local_document.pdf", "/remote/path/document.pdf")
-
-# Download a document
-sftp.get("/remote/path/report.docx", "local_report.docx")
-
-# List files in a remote directory
-for file in sftp.listdir("/remote/path/"):
-    print(file)
-
-# Close SFTP and SSH
-sftp.close()
-ssh.close()
+<div #loaderContainer class="component-body">
+  ...
+</div>
