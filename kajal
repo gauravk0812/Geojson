@@ -1,47 +1,13 @@
-protected showLoaderInComponent() {
-    this.showLoaderCounter++;
- 
-    if (this.showLoaderCounter == 1) {
-      this.overlayRef = this.createCustomOverlay();
- 
-      const spinnerComponent = new ComponentPortal(LoaderComponent);
- 
-      this.overlayRef.attach(spinnerComponent);
-    }
-  }
- 
-private createCustomOverlay(): OverlayRef {
-  const positionStrategy = this.overlay.position()
-    .flexibleConnectedTo(this.elementRef)  // attach to component
-    .withPositions([
-      {
-        originX: 'center',
-        originY: 'center',
-        overlayX: 'center',
-        overlayY: 'center',
-      }
-    ])
-    .withFlexibleDimensions(false)   
-    .withPush(false);      
- 
-  const overlayConfig = new OverlayConfig({
-    hasBackdrop: true,
-    backdropClass: 'opaque-backdrop',
-    scrollStrategy: this.overlay.scrollStrategies.block(),
-    positionStrategy,
-  });
- 
-  return this.overlay.create(overlayConfig);
-}
-
-##########################################################################################################
-@ViewChild('loaderContainer', { static: true }) loaderContainer!: ElementRef;
- 
-const positionStrategy = this.overlay.position()
-  .flexibleConnectedTo(this.loaderContainer);
-
-###########################################################################################################
-
-<div #loaderContainer class="component-body">
-  ...
-</div>
+def validate_filename(filename: str):
+    # Allowed characters (NO spaces)
+    allowed_chars = r"[A-Za-z0-9\-._~:/?#\[\]@!$&'()*+,;=]"
+    # Collect all characters not matching the allowed pattern
+    invalid_chars = sorted(set([ch for ch in filename if not re.match(allowed_chars, ch)]))
+    # Check if space exists separately (optional clarity)
+   if " " in filename:
+        raise ValueError("Filename must not contain spaces.")
+    if invalid_chars:
+        raise ValueError(
+            f"Filename '{filename}' contains invalid characters: {', '.join(invalid_chars)}"
+        )
+    return True
