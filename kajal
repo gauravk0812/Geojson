@@ -1,13 +1,2 @@
-def validate_filename(filename: str):
-    # Allowed characters (NO spaces)
-    allowed_chars = r"[A-Za-z0-9\-._~:/?#\[\]@!$&'()*+,;=]"
-    # Collect all characters not matching the allowed pattern
-    invalid_chars = sorted(set([ch for ch in filename if not re.match(allowed_chars, ch)]))
-    # Check if space exists separately (optional clarity)
-   if " " in filename:
-        raise ValueError("Filename must not contain spaces.")
-    if invalid_chars:
-        raise ValueError(
-            f"Filename '{filename}' contains invalid characters: {', '.join(invalid_chars)}"
-        )
-    return True
+Id, project_id, start_date, end_date, cycle, created_date, modified_date, created_by, modified_by
+ due_date also
