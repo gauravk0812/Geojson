@@ -1,2 +1,49 @@
-Id, project_id, start_date, end_date, cycle, created_date, modified_date, created_by, modified_by
- due_date also
+events
+fts_job_log
+lookup_group
+lookup_items
+project_documents
+project_execution_history
+project_field_definition
+project_master
+siebel_srs
+siebel_srs_comments
+siebel_srs_staging
+siebel
+site_api_staging
+site_comments
+site_coverage
+site_coverage_staging
+site_master
+site_power_info
+site
+site_rack_info
+site_staging ALTER COLUMN power_balance
+site_staging ALTER COLUMN mist_ap_info_update
+site_staging
+site_tech_map
+site_ups_info
+staff_comments
+staff_history
+staff_history_backup
+staff_laptop_info
+staff_loa
+staff_master
+staff_staging
+staff_staging ALTER COLUMN id_badge
+staff_staging ALTER COLUMN
+state_master
+task_definition
+van_allocation_history
+van_allocation_history_bkup
+van_history
+van_lifetime_stats ALTER COLUMN mileage_last
+van_lifetime_stats ALTER COLUMN expenses_last
+van_location
+van_location_staging
+van_master
+van_metadata
+van_metadata_backup
+van_reconcile
+zone_master
+document_store
