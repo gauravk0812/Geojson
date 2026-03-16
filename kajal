@@ -1,43 +1,39 @@
-events 
-               fts_job_log
-               lookup_group
-               lookup_items
-               project_documents
-               project_execution_history
-               project_field_definition
-               project_master
-               siebel_srs
-               siebel_srs_comments
-               siebel_srs_staging
-               site_api_staging
-               site_comments
-               site_coverage
-               site_coverage_staging
-               site_master
-               site_power_info
-               site_project_overview
-               site_rack_info
-               site_staging
-               site_tech_map
-               site_ups_info
-               staff_comments
-               staff_history
-               staff_history_backup
-               staff_laptop_info
-               staff_loa
-               staff_master
-               staff_staging
-               state_master
-               task_definition
-               van_allocation_history
-               van_allocation_history_bkup
-               van_history
-               van_lifetime_stats
-               van_location
-               van_location_staging
-               van_master
-               van_metadata
-               van_metadata_backup
-               van_reconcile
-               zone_master
-               document_store
+Test Cases - Current Scenario-
+
+Current Driver Change -
+van_master - Update - staff_id, start_date, end_date
+van_allocation_history - Create all the fields with new driver
+ 			- set is_active to false of previous driver
+van_history - create all the fields of previous driver
+
+serial_number change -
+van_master - Update - serial_number
+van_allocation_history - Update - serial_number
+van_history - Create all the fields with changes
+
+start_date or end_date change -
+van_master - Update - end_date or start_date
+van_allocation_history - Update - end_date or start_date
+van_history - Create all the fields with changes
+
+Test Cases - After Geo Tab Integration Scenario-
+
+Current Driver Change -
+geo_tab - Update van Drver, ActiveDatefrom and ActiveDateTo
+van_master - Update - staff_id, start_date, end_date
+van_allocation_history - Create all the fields with new driver
+ 			- set is_active to false of previous driver
+van_history - create all the fields of previous driver
+
+serial_number change -
+old geo_tab - Update van Drver, ActiveDatefrom and ActiveDateTo
+new geo_tab - Update van Drver, ActiveDatefrom and ActiveDateTo
+van_master - Update - serial_number
+van_allocation_history - Update - serial_number
+van_history - Create all the fields with changes
+
+start_date or end_date change -
+geo_tab - Update-  ActiveDatefrom and ActiveDateTo
+van_master - Update - end_date or start_date
+van_allocation_history - Update - end_date or start_date
+van_history - Create all the fields with changes
