@@ -1,39 +1,14 @@
-Test Cases - Current Scenario-
+We dont have permission to add user assigned identity
+no custom domain is not assigned for non prod environment
+no certificates are assigned
+feradatred credentials for setting up the environment in user assigned identity
 
-Current Driver Change -
-van_master - Update - staff_id, start_date, end_date
-van_allocation_history - Create all the fields with new driver
- 			- set is_active to false of previous driver
-van_history - create all the fields of previous driver
+Managed Identity missing
+Federated Credentials not configured
+Database not initialized
+App Service config incomplete
 
-serial_number change -
-van_master - Update - serial_number
-van_allocation_history - Update - serial_number
-van_history - Create all the fields with changes
+onboarding for RFT titles staff - how to treat ppl in zone 9 ether they are RFT staff members or FTS staff members
+Question to Jay
 
-start_date or end_date change -
-van_master - Update - end_date or start_date
-van_allocation_history - Update - end_date or start_date
-van_history - Create all the fields with changes
-
-Test Cases - After Geo Tab Integration Scenario-
-
-Current Driver Change -
-geo_tab - Update van Drver, ActiveDatefrom and ActiveDateTo
-van_master - Update - staff_id, start_date, end_date
-van_allocation_history - Create all the fields with new driver
- 			- set is_active to false of previous driver
-van_history - create all the fields of previous driver
-
-serial_number change -
-old geo_tab - Update van Drver, ActiveDatefrom and ActiveDateTo
-new geo_tab - Update van Drver, ActiveDatefrom and ActiveDateTo
-van_master - Update - serial_number
-van_allocation_history - Update - serial_number
-van_history - Create all the fields with changes
-
-start_date or end_date change -
-geo_tab - Update-  ActiveDatefrom and ActiveDateTo
-van_master - Update - end_date or start_date
-van_allocation_history - Update - end_date or start_date
-van_history - Create all the fields with changes
+WEDist and WDDist issue
