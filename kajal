@@ -1,6 +1,14 @@
-Edge cases:
-* If Checkout and application session out time will collapse then?
-* Manager Impersonate Tech --> Check In --> Admin force check-out --> Manager stop impersonation --> Tech should get dialog for checkout site at the time of login
-* When status is in progress then timer of force checkout should appear.
-* When timing of force checkout by admin/manager and timer of force checkout will appear at the same time --> after clicking on check-out, alert popup of force checkout by manager will appear and checklist popup should disappear.
-* When timing of force checkout by admin/manager and timer of force checkout will appear at the same time --> after clicking continue on check-out, alert popup of force checkout by manager will appear
+1. If Staff is having only FTS export permission:
+   case 1: There are only FTS Project available and no RFT Project on UI --> Export without warning
+   case 2: There are FTS and RFT Projects available on UI --> Export with warning with Yes and No
+   case 3: There are only RFT projects available on UI and no FTS Project --> No export and warning with ok
+ 
+ 
+2. If Staff is having only RFT export permission:
+   case 1: There are only FTS Project available and no RFT Project on UI --> No export and warning with ok
+   case 2: There are FTS and RFT Projects available on UI --> Export with warning with Yes and No
+   case 3: There are only RFT projects available on UI and no FTS Project --> Export without warning
+3. If staff is having both permissions:
+   case 1: There are only FTS Project available and no RFT Project on UI --> Export without warning
+   case 2: There are FTS and RFT Projects available on UI --> Export without warning
+   case 3: There are only RFT projects available on UI and no FTS Project --> Export without warning
